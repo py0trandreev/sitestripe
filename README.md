@@ -1,0 +1,2 @@
+# sitestripe
+Django + Stripe API
