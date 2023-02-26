@@ -1,18 +1,12 @@
 import stripe
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.views import View
-from django.views.generic import DetailView, TemplateView
+from django.views.generic import DetailView, ListView, TemplateView
 from django.shortcuts import render
 from .models import *
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
-
-
-def item(request, item_id):
-    item = Item.objects.get(pk=item_id)
-
-    return render(request, "products/item.html", {"item": item})
 
 
 class ProductPageView(DetailView):
@@ -32,6 +26,8 @@ class ProductPageView(DetailView):
 
 
 class CheckoutSessionView(View):
+    main_domain: str  # in debug http://127.0.0.1:8000
+
     def get_session_id(self, request, *args, **kwargs):
         product_id = self.kwargs["pk"]
         product = Item.objects.get(pk=product_id)
@@ -50,8 +46,6 @@ class CheckoutSessionView(View):
         )
         price_stripe_id = price_json.id
 
-        MAIN_DOMAIN = "http://127.0.0.1:8000/products"
-
         checkout_session_json = stripe.checkout.Session.create(
             line_items=[
                 {
@@ -60,16 +54,18 @@ class CheckoutSessionView(View):
                 },
             ],
             mode="payment",
-            success_url=MAIN_DOMAIN + "/success/",
-            cancel_url=MAIN_DOMAIN + "/cancel/",
+            success_url=self.main_domain + "/products/success/",
+            cancel_url=self.main_domain + "/products/cancel/",
         )
 
         return checkout_session_json.id
 
     def post(self, request, *args, **kwargs):
+        self.main_domain = request._current_scheme_host
         return JsonResponse({"id": self.get_session_id(self, request, *args, **kwargs)})
 
     def get(self, request, *args, **kwargs):
+        self.main_domain = request._current_scheme_host
         return JsonResponse({"id": self.get_session_id(self, request, *args, **kwargs)})
 
 
@@ -79,3 +75,9 @@ class SuccessView(TemplateView):
 
 class CancelView(TemplateView):
     template_name = "products/cancel.html"
+
+
+class ProductListView(ListView):
+    model = Item
+    template_name = "products/items.html"
+    context_object_name = "items"
