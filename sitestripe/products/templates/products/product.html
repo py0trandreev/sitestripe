@@ -1,0 +1,49 @@
+{% extends 'products/base.html' %}
+
+{% block content%}
+<section>
+  <div class="m-4">
+      <div class="card" style="width: 300px;">
+          <div class="card-body">
+              <h5 class="card-title">{{ item.name }}</h5>
+              <p class="card-text">{{ item.description }}</p>
+              <button type="submit" id="buy-button">Buy</button>
+          </div>
+      </div>
+  </div>
+  {% csrf_token %}
+</section>
+
+<script type="text/javascript">
+  const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  // Create an instance of the Stripe object with publishable API key
+  var stripe = Stripe("{{ STRIPE_PUBLIC_KEY }}");
+  var buyButton = document.getElementById("buy-button");
+  buyButton.addEventListener("click", function () {
+      fetch("{% url 'products:buy' item.id %}", {
+          method: "POST",
+          headers: {
+              'X-CSRFToken': csrftoken
+          }
+      })
+      .then(function (response) {
+          console.log("return response.json()");
+          return response.json();
+
+      })
+      .then(function (session) {
+          return stripe.redirectToCheckout({ sessionId: session.id })
+      })
+      .then(function (result) {
+          console.log("if (result.error))");
+          if (result.error) {
+              alert(result.error)
+          }
+      })
+      .catch(function (error) {
+          console.log("console.error(Error:, error)");
+          console.error("Error:", error)
+      });
+  });
+</script>
+{% endblock %}
